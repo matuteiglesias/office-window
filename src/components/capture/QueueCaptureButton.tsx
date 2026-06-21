@@ -84,6 +84,11 @@ export function QueueCaptureButton({ queueKey, queueFile, projectId, title, rowS
     setRecording(false);
   }
 
+  function openAndRecord() {
+    setOpen(true);
+    void startRecording();
+  }
+
   async function saveCapture() {
     if (!blob || blob.size === 0) {
       setSaveState("error");
@@ -124,8 +129,8 @@ export function QueueCaptureButton({ queueKey, queueFile, projectId, title, rowS
 
   return (
     <>
-      <button className="capture-button" type="button" onClick={() => setOpen(true)}>
-        🎙️ Capture
+      <button className="capture-button" type="button" onClick={openAndRecord}>
+        🎙️ Record
       </button>
       {open ? (
         <div className="modal-backdrop" role="presentation">
@@ -139,9 +144,9 @@ export function QueueCaptureButton({ queueKey, queueFile, projectId, title, rowS
               <button className="icon-button" type="button" onClick={() => setOpen(false)} aria-label="Close capture panel">×</button>
             </div>
             <div className="capture-controls">
-              {!recording ? <button type="button" onClick={startRecording}>Start recording</button> : null}
-              {recording ? <button type="button" onClick={stopRecording}>Stop recording</button> : null}
-              <button type="button" onClick={saveCapture} disabled={!blob || saveState === "saving"}>Save</button>
+              {!recording ? <button type="button" onClick={startRecording}>Record again</button> : null}
+              {recording ? <button type="button" className="recording-button" onClick={stopRecording}>Stop recording</button> : null}
+              <button type="button" onClick={saveCapture} disabled={!blob || recording || saveState === "saving"}>Send captured packet</button>
             </div>
             {previewUrl ? <audio controls src={previewUrl} className="capture-audio" /> : null}
             <label className="capture-note">

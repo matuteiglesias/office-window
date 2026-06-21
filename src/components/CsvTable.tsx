@@ -6,7 +6,7 @@ import { truncate } from "@/lib/format";
 export function CsvTable({
   rows,
   preferredColumns,
-  maxRows = 8,
+  maxRows,
   captureQueue,
 }: {
   rows: CsvRow[];
@@ -19,7 +19,8 @@ export function CsvTable({
   }
 
   const columns = safeColumns(rows, preferredColumns);
-  const visibleRows = rows.slice(0, maxRows);
+  const rowLimit = maxRows ?? (captureQueue ? rows.length : 8);
+  const visibleRows = rows.slice(0, rowLimit);
 
   return (
     <div className="table-wrap">
@@ -53,8 +54,8 @@ export function CsvTable({
           ))}
         </tbody>
       </table>
-      {rows.length > maxRows ? (
-        <div className="table-note">Showing {maxRows} of {rows.length} rows.</div>
+      {rows.length > rowLimit ? (
+        <div className="table-note">Showing {rowLimit} of {rows.length} rows.</div>
       ) : null}
     </div>
   );

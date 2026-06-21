@@ -29,13 +29,27 @@ type CaptureMetadata = {
   row_snapshot: Record<string, string>;
 };
 
+export const CAPTURE_LIFECYCLE_STATUSES = [
+  "pending_transcription",
+  "transcribed",
+  "routed",
+  "artifact_candidate",
+  "pending_reingest",
+  "applied",
+  "archived",
+  "discarded",
+  "failed",
+] as const;
+
+export type CaptureLifecycleStatus = (typeof CAPTURE_LIFECYCLE_STATUSES)[number];
+
 export type CaptureEvent = {
   event_id: string;
   ts: string;
   source: "office-window";
   capture_modality: "audio";
   capture_type: "row_voice_note";
-  status: "pending_transcription";
+  status: CaptureLifecycleStatus;
   route: string;
   target_kind: "queue_row";
   target: CaptureTarget;
@@ -46,8 +60,23 @@ export type CaptureEvent = {
     bytes: number;
   };
   note?: string;
-  transcript: null;
-  agent_notes: null;
+  transcript: { text?: string; model?: string } | null;
+  routing?: {
+    capture_mode?: string;
+    lane?: string;
+    artifact_type?: string;
+    routing_sentence?: string;
+  } | null;
+  artifact_candidate?: {
+    type?: string;
+    text?: string;
+  } | null;
+  reingest_candidate?: {
+    target_surface?: string;
+    proposed_delta?: unknown;
+    requires_human_approval?: boolean;
+  } | null;
+  agent_notes: unknown;
 };
 
 export function getCaptureRoots() {
