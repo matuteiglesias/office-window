@@ -415,3 +415,247 @@ code {
     grid-template-columns: 1fr;
   }
 }
+
+.capture-button,
+.capture-controls button,
+.icon-button {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-2);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  padding: 7px 10px;
+  white-space: nowrap;
+}
+
+.capture-button:hover,
+.capture-controls button:hover,
+.icon-button:hover {
+  border-color: rgba(121, 192, 255, 0.55);
+}
+
+.capture-controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.62);
+}
+
+.capture-modal {
+  width: min(560px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  padding: 20px;
+}
+
+.capture-modal-head,
+.capture-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.capture-modal h3,
+.capture-card h3 {
+  margin: 0;
+  letter-spacing: -0.03em;
+}
+
+.icon-button {
+  font-size: 22px;
+  line-height: 1;
+  padding: 4px 10px;
+}
+
+.capture-controls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 18px 0;
+}
+
+.capture-audio {
+  width: 100%;
+  margin: 10px 0;
+}
+
+.capture-note {
+  color: var(--muted);
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.capture-note textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #070a10;
+  color: var(--text);
+  padding: 10px;
+  font: inherit;
+}
+
+.capture-message {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.capture-message.saved {
+  border-color: rgba(63, 185, 80, 0.4);
+  color: var(--ok);
+}
+
+.capture-message.error {
+  border-color: rgba(248, 81, 73, 0.4);
+  color: var(--bad);
+}
+
+.capture-list {
+  display: grid;
+  gap: 14px;
+}
+
+.capture-card {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255,255,255,0.025);
+  padding: 16px;
+}
+
+.capture-note-text {
+  color: #c9d1d9;
+  margin-bottom: 0;
+}
+
+.capture-button {
+  background: linear-gradient(135deg, #1f6feb, #8b5cf6);
+  border-color: rgba(121, 192, 255, 0.8);
+  color: white;
+  font-weight: 800;
+  box-shadow: 0 8px 24px rgba(31, 111, 235, 0.25);
+}
+
+.recording-button {
+  border-color: rgba(248, 81, 73, 0.65) !important;
+  color: var(--bad) !important;
+}
+
+.capture-helper-grid,
+.capture-status-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.capture-helper-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.capture-status-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.capture-status-card {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255,255,255,0.025);
+  padding: 16px;
+}
+
+.capture-section-nav {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.capture-section-nav a {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  padding: 8px 12px;
+}
+
+.capture-section-nav a:hover {
+  border-color: rgba(121, 192, 255, 0.55);
+  color: var(--text);
+}
+
+.capture-anchor {
+  position: relative;
+  top: -20px;
+}
+
+.capture-trace-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.capture-detail-block {
+  border-top: 1px solid var(--line);
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
+.capture-detail-block p {
+  color: #d0d7de;
+  line-height: 1.5;
+  margin: 8px 0 0;
+}
+
+.capture-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.capture-pills span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-2);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 8px;
+}
+
+.capture-routing-form {
+  color: #d0d7de;
+  font-size: 18px;
+  line-height: 1.45;
+}
+
+.capture-pre {
+  background: #070a10;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  color: #c9d1d9;
+  margin: 10px 0 0;
+  overflow-x: auto;
+  padding: 12px;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 980px) {
+  .capture-helper-grid,
+  .capture-status-grid,
+  .capture-trace-grid {
+    grid-template-columns: 1fr;
+  }
+}
