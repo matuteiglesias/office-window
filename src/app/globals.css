@@ -415,3 +415,129 @@ code {
     grid-template-columns: 1fr;
   }
 }
+
+.capture-button,
+.capture-controls button,
+.icon-button {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-2);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  padding: 7px 10px;
+  white-space: nowrap;
+}
+
+.capture-button:hover,
+.capture-controls button:hover,
+.icon-button:hover {
+  border-color: rgba(121, 192, 255, 0.55);
+}
+
+.capture-controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.62);
+}
+
+.capture-modal {
+  width: min(560px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  padding: 20px;
+}
+
+.capture-modal-head,
+.capture-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.capture-modal h3,
+.capture-card h3 {
+  margin: 0;
+  letter-spacing: -0.03em;
+}
+
+.icon-button {
+  font-size: 22px;
+  line-height: 1;
+  padding: 4px 10px;
+}
+
+.capture-controls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 18px 0;
+}
+
+.capture-audio {
+  width: 100%;
+  margin: 10px 0;
+}
+
+.capture-note {
+  color: var(--muted);
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.capture-note textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #070a10;
+  color: var(--text);
+  padding: 10px;
+  font: inherit;
+}
+
+.capture-message {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.capture-message.saved {
+  border-color: rgba(63, 185, 80, 0.4);
+  color: var(--ok);
+}
+
+.capture-message.error {
+  border-color: rgba(248, 81, 73, 0.4);
+  color: var(--bad);
+}
+
+.capture-list {
+  display: grid;
+  gap: 14px;
+}
+
+.capture-card {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255,255,255,0.025);
+  padding: 16px;
+}
+
+.capture-note-text {
+  color: #c9d1d9;
+  margin-bottom: 0;
+}
