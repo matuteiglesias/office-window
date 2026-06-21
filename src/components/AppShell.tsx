@@ -7,6 +7,7 @@ const nav = [
   { href: "/briefs", label: "Briefs" },
   { href: "/evidence", label: "Evidence" },
   { href: "/runs", label: "Runs" },
+  { href: "/capture", label: "Capture" },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -30,7 +31,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
 
         <div className="sidebar-note">
-          Backend artifacts remain the source of truth. This UI only reads.
+          Backend artifacts remain the source of truth. This UI only reads, except append-only human capture events.
         </div>
       </aside>
 

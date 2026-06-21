@@ -35,6 +35,7 @@ export default async function QueuesPage() {
               rows={queue.rows}
               preferredColumns={SAFE_TABLE_COLUMNS}
               maxRows={12}
+              captureQueue={{ key: queue.key, file: queue.file }}
             />
           </SectionCard>
         ))}
