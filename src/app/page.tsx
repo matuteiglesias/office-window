@@ -1,65 +1,105 @@
-import Image from "next/image";
+import { CsvTable } from "@/components/CsvTable";
+import { LedgerTail } from "@/components/LedgerTail";
+import { MarkdownDocument } from "@/components/MarkdownDocument";
+import { MetricCard } from "@/components/MetricCard";
+import { SectionCard } from "@/components/SectionCard";
+import { StatusBadge } from "@/components/StatusBadge";
+import { formatCount } from "@/lib/format";
+import { getWeekBias } from "@/lib/week";
+import {
+  SAFE_TABLE_COLUMNS,
+  getCockpitMarkdowns,
+  getLatestLedgerTail,
+  getManifestSummary,
+  getQueueSummaries,
+} from "@/lib/server/officeArtifacts";
 
-export default function Home() {
+export default async function HomePage() {
+  const [manifest, queues, docs, ledger] = await Promise.all([
+    getManifestSummary(),
+    getQueueSummaries(),
+    getCockpitMarkdowns(),
+    getLatestLedgerTail(30),
+  ]);
+
+  const week = getWeekBias();
+  const focus = queues.find((q) => q.key === "focus");
+  const maint = queues.find((q) => q.key === "maint");
+  const support = queues.find((q) => q.key === "support");
+  const watch = queues.find((q) => q.key === "watch");
+  const post = queues.find((q) => q.key === "post");
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <div className="page">
+      <header className="hero">
+        <div>
+          <div className="eyebrow">Today Cockpit</div>
+          <h1>Office Window</h1>
+          <p>
+            A local read-only view over the current Office artifacts. No writes,
+            no CLI execution, no second source of truth.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <div className="week-card">
+          <div className="eyebrow">{week.dayName}</div>
+          <h2>{week.label}</h2>
+          <p>{week.description}</p>
         </div>
-      </main>
+      </header>
+
+      <section className="metrics-grid">
+        <MetricCard
+          label="Compile status"
+          value={manifest.status || "missing"}
+          detail={manifest.exists ? manifest.relPath : "manifest not found"}
+        />
+        <MetricCard label="Run id" value={manifest.runId || "—"} />
+        <MetricCard label="Warnings" value={manifest.warnings} />
+        <MetricCard
+          label="Merged rows"
+          value={formatCount(manifest.rowCounts.merged || manifest.rowCounts.merged_state)}
+        />
+        <MetricCard label="FOCUS" value={focus?.count ?? 0} detail={focus?.file} />
+        <MetricCard label="MAINT" value={maint?.count ?? 0} detail={maint?.file} />
+        <MetricCard label="SUPPORT" value={support?.count ?? 0} detail={support?.file} />
+        <MetricCard label="WATCH" value={watch?.count ?? 0} detail={watch?.file} />
+        <MetricCard label="POST" value={post?.count ?? 0} detail={post?.file} />
+      </section>
+
+      <SectionCard title="Queue preview" eyebrow="current latest">
+        <div className="queue-preview-grid">
+          {queues.slice(0, 5).map((queue) => (
+            <div key={queue.key} className="queue-mini-card">
+              <div className="queue-mini-head">
+                <h3>{queue.title}</h3>
+                <StatusBadge status={queue.exists ? "ok" : "missing"} subtle />
+              </div>
+              <p>{queue.description}</p>
+              <CsvTable
+                rows={queue.rows}
+                preferredColumns={SAFE_TABLE_COLUMNS}
+                maxRows={3}
+              />
+            </div>
+          ))}
+        </div>
+      </SectionCard>
+
+      <section className="doc-grid">
+        {docs.map((doc) => (
+          <MarkdownDocument
+            key={doc.key}
+            title={doc.title}
+            content={doc.content}
+            empty={`${doc.file} not found.`}
+          />
+        ))}
+      </section>
+
+      <SectionCard title="Latest ledger tail" eyebrow="logs/daily">
+        <LedgerTail ledger={ledger} />
+      </SectionCard>
     </div>
   );
 }
