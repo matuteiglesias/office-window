@@ -96,6 +96,12 @@ function localDateParts(date = new Date()) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+function assertSafeEventId(eventId: string) {
+  if (!/^[A-Za-z0-9._:-]{1,200}$/.test(eventId)) {
+    throw new Error("Invalid source event id.");
+  }
+}
+
 export function sanitizeCaptureMetadata(raw: unknown): CaptureMetadata | null {
   if (!raw || typeof raw !== "object") return null;
   const obj = raw as Record<string, unknown>;
@@ -172,6 +178,30 @@ export async function saveAudioCapture({
   };
 
   await appendFile(inboxPath, `${JSON.stringify(event)}\n`, "utf8");
+  return event;
+}
+
+export async function appendCaptureProcessingRequest(sourceEventId: string) {
+  const roots = getCaptureRoots();
+  if (!roots.ok) throw new Error(roots.error);
+  assertSafeEventId(sourceEventId);
+
+  const day = localDateParts();
+  const requestDir = path.join(roots.inbox, "capture_processing");
+  const requestPath = path.join(requestDir, `${day}.jsonl`);
+  assertInside(roots.inbox, requestPath);
+
+  const event = {
+    event_type: "capture.processing_requested",
+    source_event_id: sourceEventId,
+    requested_by: "office-window",
+    requested_stage: "full_pipeline",
+    status: "queued",
+    ts: new Date().toISOString(),
+  };
+
+  await mkdir(requestDir, { recursive: true });
+  await appendFile(requestPath, `${JSON.stringify(event)}\n`, "utf8");
   return event;
 }
 

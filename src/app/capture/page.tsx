@@ -1,11 +1,15 @@
 import { SectionCard } from "@/components/SectionCard";
 import { StatusBadge } from "@/components/StatusBadge";
+import { CsvTable } from "@/components/CsvTable";
+import { MarkdownDocument } from "@/components/MarkdownDocument";
+import { RequestProcessingButton } from "@/components/capture/RequestProcessingButton";
 import { CAPTURE_LIFECYCLE_STATUSES } from "@/lib/captureOntology";
 import { getCaptureRoots } from "@/lib/server/captureEvents";
 import {
   type CaptureLifecycleItem,
   getCaptureLifecycle,
 } from "@/lib/server/captureLifecycle";
+import { getCaptureCandidateArtifacts } from "@/lib/server/captureArtifacts";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +20,18 @@ const sections: Array<{ key: string; title: string; statuses: string[] }> = [
   { key: "artifact", title: "Artifact candidates", statuses: ["artifact_candidate"] },
   { key: "reingest", title: "Reingest candidates", statuses: ["pending_reingest"] },
   { key: "done", title: "Done / Archived", statuses: ["approved", "applied", "archived", "discarded"] },
+];
+
+const blockStubColumns = [
+  "candidate_id",
+  "source_event_id",
+  "project_id",
+  "project_title",
+  "suggested_title",
+  "suggested_mode",
+  "expected_duration_min",
+  "status",
+  "review_required",
 ];
 
 function eventMatches(event: CaptureLifecycleItem, statuses: string[]) {
@@ -81,6 +97,16 @@ function CaptureEventCard({ event }: { event: CaptureLifecycleItem }) {
         </>
       ) : null}
 
+      {["pending_transcription", "queued"].includes(event.status) ? (
+        <div className="capture-detail-block">
+          <div className="metric-label">processing request</div>
+          <p className="muted">
+            Appends a local request event only. Office Window does not transcribe, call OpenAI, or run the Office Auto Lab pipeline.
+          </p>
+          <RequestProcessingButton sourceEventId={event.event_id} />
+        </div>
+      ) : null}
+
       {event.human_note ? (
         <div className="capture-detail-block">
           <div className="metric-label">human note</div>
@@ -140,6 +166,7 @@ function CaptureEventCard({ event }: { event: CaptureLifecycleItem }) {
 export default async function CapturePage() {
   const roots = getCaptureRoots();
   const lifecycle = await getCaptureLifecycle();
+  const candidateArtifacts = await getCaptureCandidateArtifacts();
   const events = lifecycle.captures;
   const statusCounts = lifecycle.statusCounts;
 
@@ -164,13 +191,55 @@ export default async function CapturePage() {
         title={lifecycle.source === "compiled" ? "Compiled lifecycle" : "Raw inbox fallback"}
         eyebrow="capture source"
       >
+        <div className="capture-pills">
+          <span>{lifecycle.source === "compiled" ? "Compiled lifecycle" : "Raw inbox fallback"}</span>
+        </div>
         <p className="muted">
           {lifecycle.source === "compiled"
             ? "Showing capture lifecycle compiled by office-auto-lab."
             : "Showing append-only raw capture inbox records until a compiled lifecycle artifact is available."}
         </p>
         {lifecycle.generatedAt ? <p className="muted">Generated: {formatDate(lifecycle.generatedAt)}</p> : null}
-        {lifecycle.warning ? <p className="muted">{lifecycle.warning}</p> : null}
+        {lifecycle.warning ? <p className="capture-warning">{lifecycle.warning}</p> : null}
+      </SectionCard>
+
+      <SectionCard title="Candidate artifacts" eyebrow="office-auto-lab compiled surfaces">
+        {candidateArtifacts.candidatesJson.generatedAt ? (
+          <p className="muted">Generated: {formatDate(candidateArtifacts.candidatesJson.generatedAt)}</p>
+        ) : null}
+        {candidateArtifacts.candidatesJson.warning ? (
+          <p className="capture-warning">{candidateArtifacts.candidatesJson.warning}</p>
+        ) : null}
+        {candidateArtifacts.candidatesMarkdown.exists ? (
+          <MarkdownDocument content={candidateArtifacts.candidatesMarkdown.content} empty="Capture candidate summary is empty." />
+        ) : candidateArtifacts.candidatesJson.content ? (
+          <pre className="capture-pre">{formatJson(candidateArtifacts.candidatesJson.content)}</pre>
+        ) : (
+          <p className="muted">No compiled capture candidate artifacts found.</p>
+        )}
+      </SectionCard>
+
+      <SectionCard title="Work block candidate stubs" eyebrow="review-only candidates">
+        <div className="capture-pills">
+          <span>Candidate</span>
+          <span>Review required</span>
+          <span>Not a task yet</span>
+          <span>Not applied to Office state</span>
+        </div>
+        <p className="muted">
+          These stubs are Office Auto Lab suggestions for review. Office Window only displays them and does not apply them to Office state.
+        </p>
+        {candidateArtifacts.blockStubsCsv.warning ? (
+          <p className="capture-warning">{candidateArtifacts.blockStubsCsv.warning}</p>
+        ) : null}
+        {candidateArtifacts.blockStubsMarkdown.exists ? (
+          <MarkdownDocument content={candidateArtifacts.blockStubsMarkdown.content} empty="Work block candidate summary is empty." />
+        ) : null}
+        {candidateArtifacts.blockStubsCsv.exists ? (
+          <CsvTable rows={candidateArtifacts.blockStubsCsv.rows} preferredColumns={blockStubColumns} maxRows={50} />
+        ) : !candidateArtifacts.blockStubsMarkdown.exists ? (
+          <p className="muted">No compiled work block candidate stubs found.</p>
+        ) : null}
       </SectionCard>
 
       <section className="capture-helper-grid">

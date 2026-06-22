@@ -1,58 +1,58 @@
 export type CsvRow = Record<string, string>;
 
-// function parseCsvLine(line: string): string[] {
-//   const cells: string[] = [];
-//   let cell = "";
-//   let inQuotes = false;
+function parseCsvRecords(text: string): string[][] {
+  const records: string[][] = [];
+  let record: string[] = [];
+  let cell = "";
+  let inQuotes = false;
 
-//   for (let i = 0; i < line.length; i += 1) {
-//     const ch = line[i];
-//     const next = line[i + 1];
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    const next = text[i + 1];
 
-//     if (ch === '"' && inQuotes && next === '"') {
-//       cell += '"';
-//       i += 1;
-//       continue;
-//     }
+    if (ch === '"' && inQuotes && next === '"') {
+      cell += '"';
+      i += 1;
+      continue;
+    }
 
-//     if (ch === '"') {
-//       inQuotes = !inQuotes;
-//       continue;
-//     }
+    if (ch === '"') {
+      inQuotes = !inQuotes;
+      continue;
+    }
 
-//     if (ch === "," && !inQuotes) {
-//       cells.push(cell);
-//       cell = "";
-//       continue;
-//     }
+    if (ch === "," && !inQuotes) {
+      record.push(cell.trim());
+      cell = "";
+      continue;
+    }
 
-//     cell += ch;
-//   }
+    if ((ch === "\n" || ch === "\r") && !inQuotes) {
+      if (ch === "\r" && next === "\n") i += 1;
+      record.push(cell.trim());
+      if (record.some((value) => value.length > 0)) records.push(record);
+      record = [];
+      cell = "";
+      continue;
+    }
 
-//   cells.push(cell);
-//   return cells.map((x) => x.trim());
-// }
+    cell += ch;
+  }
 
-
-import { parse } from "csv-parse/sync";
-
+  record.push(cell.trim());
+  if (record.some((value) => value.length > 0)) records.push(record);
+  return records;
+}
 
 export function parseCsv(text: string): CsvRow[] {
   if (!text.trim()) return [];
 
-  const rows = parse(text, {
-    columns: true,
-    skip_empty_lines: true,
-    bom: true,
-    trim: true,
-    relax_column_count: true,
-    relax_quotes: true,
-  }) as Record<string, unknown>[];
+  const records = parseCsvRecords(text.replace(/^\uFEFF/, ""));
+  const [headers, ...rows] = records;
+  if (!headers) return [];
 
   return rows.map((row) =>
-    Object.fromEntries(
-      Object.entries(row).map(([key, value]) => [key, value == null ? "" : String(value)]),
-    ),
+    Object.fromEntries(headers.map((header, index) => [header, row[index] ?? ""])),
   );
 }
 
