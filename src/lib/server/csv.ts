@@ -1,62 +1,59 @@
 export type CsvRow = Record<string, string>;
 
-function parseCsvLine(line: string): string[] {
-  const cells: string[] = [];
-  let cell = "";
-  let inQuotes = false;
+// function parseCsvLine(line: string): string[] {
+//   const cells: string[] = [];
+//   let cell = "";
+//   let inQuotes = false;
 
-  for (let i = 0; i < line.length; i += 1) {
-    const ch = line[i];
-    const next = line[i + 1];
+//   for (let i = 0; i < line.length; i += 1) {
+//     const ch = line[i];
+//     const next = line[i + 1];
 
-    if (ch === '"' && inQuotes && next === '"') {
-      cell += '"';
-      i += 1;
-      continue;
-    }
+//     if (ch === '"' && inQuotes && next === '"') {
+//       cell += '"';
+//       i += 1;
+//       continue;
+//     }
 
-    if (ch === '"') {
-      inQuotes = !inQuotes;
-      continue;
-    }
+//     if (ch === '"') {
+//       inQuotes = !inQuotes;
+//       continue;
+//     }
 
-    if (ch === "," && !inQuotes) {
-      cells.push(cell);
-      cell = "";
-      continue;
-    }
+//     if (ch === "," && !inQuotes) {
+//       cells.push(cell);
+//       cell = "";
+//       continue;
+//     }
 
-    cell += ch;
-  }
+//     cell += ch;
+//   }
 
-  cells.push(cell);
-  return cells.map((x) => x.trim());
-}
+//   cells.push(cell);
+//   return cells.map((x) => x.trim());
+// }
+
+
+import { parse } from "csv-parse/sync";
+
 
 export function parseCsv(text: string): CsvRow[] {
-  const lines = text
-    .replace(/\r\n/g, "\n")
-    .replace(/\r/g, "\n")
-    .split("\n")
-    .filter((line) => line.trim().length > 0);
+  if (!text.trim()) return [];
 
-  if (lines.length === 0) return [];
+  const rows = parse(text, {
+    columns: true,
+    skip_empty_lines: true,
+    bom: true,
+    trim: true,
+    relax_column_count: true,
+    relax_quotes: true,
+  }) as Record<string, unknown>[];
 
-  const headers = parseCsvLine(lines[0]).map((h, i) => h || `unnamed_${i}`);
-  const rows: CsvRow[] = [];
-
-  for (const line of lines.slice(1)) {
-    const values = parseCsvLine(line);
-    const row: CsvRow = {};
-
-    headers.forEach((header, i) => {
-      row[header] = values[i] ?? "";
-    });
-
-    rows.push(row);
-  }
-
-  return rows;
+  return rows.map((row) =>
+    Object.fromEntries(
+      Object.entries(row).map(([key, value]) => [key, value == null ? "" : String(value)]),
+    ),
+  );
 }
 
 export function safeColumns(rows: CsvRow[], preferred: string[]): string[] {
