@@ -1,6 +1,8 @@
 import { appendFile, mkdir, readFile, readdir, stat, writeFile } from "fs/promises";
 import path from "path";
 import { randomUUID } from "crypto";
+import { type CaptureLifecycleStatus } from "@/lib/captureOntology";
+export { CAPTURE_LIFECYCLE_STATUSES } from "@/lib/captureOntology";
 
 export const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
 
@@ -28,20 +30,6 @@ type CaptureMetadata = {
   target: CaptureTarget;
   row_snapshot: Record<string, string>;
 };
-
-export const CAPTURE_LIFECYCLE_STATUSES = [
-  "pending_transcription",
-  "transcribed",
-  "routed",
-  "artifact_candidate",
-  "pending_reingest",
-  "applied",
-  "archived",
-  "discarded",
-  "failed",
-] as const;
-
-export type CaptureLifecycleStatus = (typeof CAPTURE_LIFECYCLE_STATUSES)[number];
 
 export type CaptureEvent = {
   event_id: string;
@@ -222,13 +210,20 @@ export async function getRecentCaptureEvents(limit = 50): Promise<CaptureEvent[]
   return events.sort((a, b) => b.ts.localeCompare(a.ts)).slice(0, limit);
 }
 
+export function normalizeCaptureAudioRelPath(relPath: string) {
+  const normalized = relPath.replaceAll("\\", "/").replace(/^inbox\/human_feedback_audio\//, "");
+  if (!/^\d{4}-\d{2}-\d{2}\/[A-Za-z0-9._-]+\.webm$/.test(normalized)) return null;
+  return normalized;
+}
+
 export async function readCaptureAudio(relPath: string) {
   const roots = getCaptureRoots();
   if (!roots.ok) throw new Error(roots.error);
-  if (!/^\d{4}-\d{2}-\d{2}\/[0-9a-f-]{36}\.webm$/.test(relPath)) {
+  const safeRelPath = normalizeCaptureAudioRelPath(relPath);
+  if (!safeRelPath) {
     throw new Error("Invalid capture audio path.");
   }
-  const audioPath = path.join(roots.audioRoot, relPath);
+  const audioPath = path.join(roots.audioRoot, safeRelPath);
   assertInside(roots.audioRoot, audioPath);
   const info = await stat(audioPath);
   if (!info.isFile()) throw new Error("Capture audio not found.");
