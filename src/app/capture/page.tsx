@@ -1,24 +1,24 @@
 import { SectionCard } from "@/components/SectionCard";
 import { StatusBadge } from "@/components/StatusBadge";
+import { CAPTURE_LIFECYCLE_STATUSES } from "@/lib/captureOntology";
+import { getCaptureRoots } from "@/lib/server/captureEvents";
 import {
-  CAPTURE_LIFECYCLE_STATUSES,
-  type CaptureEvent,
-  getCaptureRoots,
-  getRecentCaptureEvents,
-} from "@/lib/server/captureEvents";
+  type CaptureLifecycleItem,
+  getCaptureLifecycle,
+} from "@/lib/server/captureLifecycle";
 
 export const dynamic = "force-dynamic";
 
 const sections: Array<{ key: string; title: string; statuses: string[] }> = [
-  { key: "inbox", title: "Inbox", statuses: ["pending_transcription", "failed"] },
+  { key: "inbox", title: "Inbox", statuses: ["pending_transcription", "queued", "failed"] },
   { key: "transcribed", title: "Transcribed", statuses: ["transcribed"] },
   { key: "routed", title: "Routed", statuses: ["routed"] },
   { key: "artifact", title: "Artifact candidates", statuses: ["artifact_candidate"] },
   { key: "reingest", title: "Reingest candidates", statuses: ["pending_reingest"] },
-  { key: "done", title: "Done / Archived", statuses: ["applied", "archived", "discarded"] },
+  { key: "done", title: "Done / Archived", statuses: ["approved", "applied", "archived", "discarded"] },
 ];
 
-function eventMatches(event: CaptureEvent, statuses: string[]) {
+function eventMatches(event: CaptureLifecycleItem, statuses: string[]) {
   return statuses.includes(event.status);
 }
 
@@ -27,7 +27,13 @@ function formatJson(value: unknown) {
   return JSON.stringify(value, null, 2);
 }
 
-function CaptureEventCard({ event }: { event: CaptureEvent }) {
+function formatDate(value: string) {
+  if (!value) return "unknown time";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+}
+
+function CaptureEventCard({ event }: { event: CaptureLifecycleItem }) {
   const transcript = event.transcript && typeof event.transcript === "object" ? event.transcript : null;
   const routing = event.routing && typeof event.routing === "object" ? event.routing : null;
   const artifact =
@@ -41,7 +47,7 @@ function CaptureEventCard({ event }: { event: CaptureEvent }) {
         <div>
           <h3>{event.target.title || event.target.project_id || event.event_id}</h3>
           <p className="muted">
-            {event.target.queue_key} · {event.target.project_id} · {new Date(event.ts).toLocaleString()}
+            {event.target.queue_key} · {event.target.project_id} · {formatDate(event.created_at)}
           </p>
         </div>
         <StatusBadge status={event.status} subtle />
@@ -58,7 +64,7 @@ function CaptureEventCard({ event }: { event: CaptureEvent }) {
         </div>
         <div>
           <span className="metric-label">route</span>
-          <div className="artifact-path">{event.route}</div>
+          <div className="artifact-path">{event.route || "capture_lifecycle"}</div>
         </div>
       </div>
 
@@ -75,10 +81,10 @@ function CaptureEventCard({ event }: { event: CaptureEvent }) {
         </>
       ) : null}
 
-      {event.note ? (
+      {event.human_note ? (
         <div className="capture-detail-block">
           <div className="metric-label">human note</div>
-          <p>{event.note}</p>
+          <p>{event.human_note}</p>
         </div>
       ) : null}
 
@@ -110,6 +116,7 @@ function CaptureEventCard({ event }: { event: CaptureEvent }) {
         <div className="capture-detail-block">
           <div className="metric-label">artifact candidate{artifact.type ? ` · ${artifact.type}` : ""}</div>
           {artifact.text ? <p>{artifact.text}</p> : null}
+          {artifact.confidence ? <p className="muted">Confidence: {artifact.confidence}</p> : null}
         </div>
       ) : null}
 
@@ -117,6 +124,7 @@ function CaptureEventCard({ event }: { event: CaptureEvent }) {
         <div className="capture-detail-block">
           <div className="metric-label">reingest candidate</div>
           {reingest.target_surface ? <p>Target surface: {reingest.target_surface}</p> : null}
+          {reingest.target_id ? <p>Target ID: {reingest.target_id}</p> : null}
           {reingest.proposed_delta ? <pre className="capture-pre">{formatJson(reingest.proposed_delta)}</pre> : null}
           {typeof reingest.requires_human_approval === "boolean" ? (
             <p className="muted">
@@ -131,11 +139,9 @@ function CaptureEventCard({ event }: { event: CaptureEvent }) {
 
 export default async function CapturePage() {
   const roots = getCaptureRoots();
-  const events = await getRecentCaptureEvents(100);
-  const statusCounts = Object.fromEntries(CAPTURE_LIFECYCLE_STATUSES.map((status) => [status, 0]));
-  for (const event of events) {
-    statusCounts[event.status] = (statusCounts[event.status] ?? 0) + 1;
-  }
+  const lifecycle = await getCaptureLifecycle();
+  const events = lifecycle.captures;
+  const statusCounts = lifecycle.statusCounts;
 
   return (
     <div className="page">
@@ -153,6 +159,19 @@ export default async function CapturePage() {
           <p className="muted">{roots.error}</p>
         </SectionCard>
       ) : null}
+
+      <SectionCard
+        title={lifecycle.source === "compiled" ? "Compiled lifecycle" : "Raw inbox fallback"}
+        eyebrow="capture source"
+      >
+        <p className="muted">
+          {lifecycle.source === "compiled"
+            ? "Showing capture lifecycle compiled by office-auto-lab."
+            : "Showing append-only raw capture inbox records until a compiled lifecycle artifact is available."}
+        </p>
+        {lifecycle.generatedAt ? <p className="muted">Generated: {formatDate(lifecycle.generatedAt)}</p> : null}
+        {lifecycle.warning ? <p className="muted">{lifecycle.warning}</p> : null}
+      </SectionCard>
 
       <section className="capture-helper-grid">
         <SectionCard title="Lifecycle" eyebrow="human → capture → reuse">
