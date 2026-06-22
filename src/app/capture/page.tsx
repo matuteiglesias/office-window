@@ -3,6 +3,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { CsvTable } from "@/components/CsvTable";
 import { MarkdownDocument } from "@/components/MarkdownDocument";
 import { RequestProcessingButton } from "@/components/capture/RequestProcessingButton";
+import { CaptureReviewActions } from "@/components/capture/CaptureReviewActions";
 import { CAPTURE_LIFECYCLE_STATUSES } from "@/lib/captureOntology";
 import { getCaptureRoots } from "@/lib/server/captureEvents";
 import {
@@ -49,6 +50,96 @@ function formatDate(value: string) {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+}
+
+function formatValue(value: unknown) {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return formatJson(value);
+}
+
+function proposalEntries(value: unknown) {
+  const record = asRecord(value);
+  if (!record) return [];
+  const preferredKeys = ["next", "needs", "status", "carry", "horizon"];
+  const preferred = preferredKeys.filter((key) => record[key] !== undefined && record[key] !== null && record[key] !== "");
+  const extra = Object.keys(record).filter((key) => !preferredKeys.includes(key) && record[key] !== undefined && record[key] !== null && record[key] !== "");
+  return [...preferred, ...extra].map((key) => [key, record[key]] as const);
+}
+
+function looksLikeTestTranscript(value: unknown) {
+  if (typeof value !== "string") return false;
+  const text = value.toLowerCase().trim();
+  if (!text) return false;
+  return (
+    text.includes("uno, dos, tres") ||
+    text.includes("uno dos tres") ||
+    text.includes("hola, hola") ||
+    text.includes("test") ||
+    text.includes("prueba")
+  );
+}
+
+function humanStatusLabel(event: CaptureLifecycleItem) {
+  if (event.status === "pending_reingest") return "Pending human review";
+  if (event.status === "approved") return "Approved · awaiting apply";
+  if (event.status === "archived") return "Archived";
+  if (event.status === "discarded") return "Discarded";
+  if (event.status === "queued" && event.events?.includes("capture.reprocess_requested")) return "Queued for reprocess";
+  return event.status.replaceAll("_", " ");
+}
+
+function humanTitle(event: CaptureLifecycleItem, artifact: CaptureLifecycleItem["artifact_candidate"], reingest: CaptureLifecycleItem["reingest_candidate"]) {
+  const delta = asRecord(reingest?.proposed_delta);
+  return (
+    event.target.title ||
+    (artifact && "title" in artifact && typeof artifact.title === "string" ? artifact.title : "") ||
+    (delta && typeof delta.project_title === "string" ? delta.project_title : "") ||
+    (delta && typeof delta.title === "string" ? delta.title : "") ||
+    event.target.project_id ||
+    event.event_id
+  );
+}
+
+function targetLine(event: CaptureLifecycleItem) {
+  return [
+    event.target.project_id ? `Project ${event.target.project_id}` : null,
+    event.target.queue_key || null,
+    event.created_at ? `captured ${formatDate(event.created_at)}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function reviewOutcome(event: CaptureLifecycleItem) {
+  if (event.status === "approved") {
+    return { label: "Approved · awaiting apply", reason: event.review?.note ? `Note: ${event.review.note}` : "Approved for later Office Auto Lab apply." };
+  }
+  if (event.status === "discarded") {
+    return { label: "Discarded", reason: [event.discard?.reason, event.discard?.note].filter(Boolean).join(" · ") };
+  }
+  if (event.status === "archived") {
+    return { label: "Archived", reason: [event.archive?.reason, event.archive?.note].filter(Boolean).join(" · ") };
+  }
+  if (event.status === "applied") {
+    return { label: "Applied", reason: event.review?.note ? `Note: ${event.review.note}` : "Applied by Office Auto Lab." };
+  }
+  if (event.status === "queued" && event.events?.includes("capture.reprocess_requested")) {
+    return { label: "Queued for reprocess", reason: [event.request?.stage, event.request?.instruction].filter(Boolean).join(" · ") };
+  }
+  return null;
+}
+
+function terminalBadge(event: CaptureLifecycleItem) {
+  if (event.status === "approved") return "Awaiting apply";
+  if (event.status === "discarded") return "Closed";
+  if (event.status === "archived") return "No action";
+  if (event.status === "applied") return "Applied";
+  return null;
+}
+
 function CaptureEventCard({ event }: { event: CaptureLifecycleItem }) {
   const transcript = event.transcript && typeof event.transcript === "object" ? event.transcript : null;
   const routing = event.routing && typeof event.routing === "object" ? event.routing : null;
@@ -56,35 +147,140 @@ function CaptureEventCard({ event }: { event: CaptureLifecycleItem }) {
     event.artifact_candidate && typeof event.artifact_candidate === "object" ? event.artifact_candidate : null;
   const reingest =
     event.reingest_candidate && typeof event.reingest_candidate === "object" ? event.reingest_candidate : null;
+  const isPendingReview = event.status === "pending_reingest";
+  const isClosed = ["approved", "applied", "archived", "discarded"].includes(event.status);
+  const isQueuedReprocess = event.status === "queued" && event.events?.includes("capture.reprocess_requested");
+  const title = humanTitle(event, artifact, reingest);
+  const deltaEntries = proposalEntries(reingest?.proposed_delta ?? event.approval?.approved_delta);
+  const approvedDeltaEntries = proposalEntries(event.approval?.approved_delta ?? reingest?.proposed_delta);
+  const testLikeTranscript = looksLikeTestTranscript(transcript?.text);
+  const outcome = reviewOutcome(event);
+  const badge = terminalBadge(event);
+
+  if (isClosed) {
+    return (
+      <article className="capture-card capture-review-card capture-terminal-card">
+        <div className="capture-review-header">
+          <StatusBadge status={event.status} subtle />
+          <div className="capture-review-title-block">
+            <div className="eyebrow">{humanStatusLabel(event)}</div>
+            <h3>{title}</h3>
+            {targetLine(event) ? <p className="muted">{targetLine(event)}</p> : null}
+          </div>
+        </div>
+
+        <div className="capture-pills" aria-label="Terminal capture badges">
+          {badge ? <span>{badge}</span> : null}
+          {event.status === "approved" ? <span>Not applied to Office state</span> : null}
+        </div>
+
+        <div className="capture-terminal-summary">
+          {event.status === "approved" || event.status === "applied" ? (
+            <>
+              <div>
+                <span className="metric-label">approved target</span>
+                <p>{[event.approval?.target_surface || reingest?.target_surface, event.approval?.target_id || reingest?.target_id].filter(Boolean).join(" / ") || "No target recorded"}</p>
+              </div>
+              {approvedDeltaEntries.length ? (
+                <div>
+                  <span className="metric-label">approved delta</span>
+                  <dl className="capture-delta-list compact">
+                    {approvedDeltaEntries.map(([key, value]) => (
+                      <div key={key}>
+                        <dt>{key}</dt>
+                        <dd>{formatValue(value)}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              ) : null}
+              <div>
+                <span className="metric-label">note</span>
+                <p>{event.review?.note || "No note"}</p>
+              </div>
+            </>
+          ) : null}
+
+          {event.status === "discarded" ? (
+            <>
+              <div>
+                <span className="metric-label">discard reason</span>
+                <p>{event.discard?.reason || "No reason recorded"}</p>
+              </div>
+              <div>
+                <span className="metric-label">note</span>
+                <p>{event.discard?.note || "No note"}</p>
+              </div>
+            </>
+          ) : null}
+
+          {event.status === "archived" ? (
+            <>
+              <div>
+                <span className="metric-label">archive reason</span>
+                <p>{event.archive?.reason || "No reason recorded"}</p>
+              </div>
+              <div>
+                <span className="metric-label">note</span>
+                <p>{event.archive?.note || "No note"}</p>
+              </div>
+            </>
+          ) : null}
+        </div>
+
+        <details className="capture-technical-details">
+          <summary>Technical details</summary>
+          <div className="capture-trace-grid">
+            <div>
+              <span className="metric-label">event_id</span>
+              <div className="artifact-path">{event.event_id}</div>
+            </div>
+            {event.route ? (
+              <div>
+                <span className="metric-label">route</span>
+                <div className="artifact-path">{event.route}</div>
+              </div>
+            ) : null}
+            {event.target.queue_file ? (
+              <div>
+                <span className="metric-label">queue file</span>
+                <div className="artifact-path">{event.target.queue_file}</div>
+              </div>
+            ) : null}
+          </div>
+          {routing ? <pre className="capture-pre">{formatJson({ routing })}</pre> : null}
+          {reingest ? <pre className="capture-pre">{formatJson({ reingest_candidate: reingest })}</pre> : null}
+          {artifact ? <pre className="capture-pre">{formatJson({ artifact_candidate: artifact })}</pre> : null}
+          {event.approval ? <pre className="capture-pre">{formatJson({ approval: event.approval })}</pre> : null}
+          {event.discard ? <pre className="capture-pre">{formatJson({ discard: event.discard })}</pre> : null}
+          {event.archive ? <pre className="capture-pre">{formatJson({ archive: event.archive })}</pre> : null}
+          {event.request ? <pre className="capture-pre">{formatJson({ request: event.request })}</pre> : null}
+          {event.events ? <pre className="capture-pre">{formatJson({ events: event.events })}</pre> : null}
+        </details>
+      </article>
+    );
+  }
 
   return (
-    <article className="capture-card">
-      <div className="capture-card-head">
-        <div>
-          <h3>{event.target.title || event.target.project_id || event.event_id}</h3>
-          <p className="muted">
-            {event.target.queue_key} · {event.target.project_id} · {formatDate(event.created_at)}
-          </p>
-        </div>
+    <article className={`capture-card capture-review-card${isClosed ? " capture-card-compact" : ""}`}>
+      <div className="capture-review-header">
         <StatusBadge status={event.status} subtle />
-      </div>
-
-      <div className="capture-trace-grid">
-        <div>
-          <span className="metric-label">event</span>
-          <div className="artifact-path">{event.event_id}</div>
-        </div>
-        <div>
-          <span className="metric-label">queue file</span>
-          <div className="artifact-path">{event.target.queue_file}</div>
-        </div>
-        <div>
-          <span className="metric-label">route</span>
-          <div className="artifact-path">{event.route || "capture_lifecycle"}</div>
+        <div className="capture-review-title-block">
+          <div className="eyebrow">{humanStatusLabel(event)}</div>
+          <h3>{title}</h3>
+          {targetLine(event) ? <p className="muted">{targetLine(event)}</p> : null}
         </div>
       </div>
 
-      {event.audio?.rel_path ? (
+      <div className="capture-pills" aria-label="Capture review badges">
+        {isPendingReview ? <span>Requires review</span> : null}
+        {artifact || reingest ? <span>AI generated</span> : null}
+        {reingest?.requires_human_approval ? <span>Requires approval</span> : null}
+        {isPendingReview || event.status === "approved" ? <span>Not applied to Office state</span> : null}
+        {isQueuedReprocess ? <span>Queued for reprocess</span> : null}
+      </div>
+
+      {event.audio?.rel_path && !isClosed ? (
         <>
           <div className="artifact-path">
             {event.audio.rel_path} · {(event.audio.bytes ?? 0).toLocaleString()} bytes
@@ -97,68 +293,116 @@ function CaptureEventCard({ event }: { event: CaptureLifecycleItem }) {
         </>
       ) : null}
 
-      {["pending_transcription", "queued"].includes(event.status) ? (
-        <div className="capture-detail-block">
-          <div className="metric-label">processing request</div>
+      {transcript?.text ? (
+        <section className="capture-review-section">
+          <div className="capture-section-head">
+            <div className="metric-label">Transcript</div>
+            {transcript.model ? <span className="muted">model: {transcript.model}</span> : null}
+          </div>
+          <blockquote className="capture-transcript-quote">“{transcript.text}”</blockquote>
+        </section>
+      ) : null}
+
+      {(artifact || routing || reingest || event.approval) && !["pending_transcription", "queued"].includes(event.status) ? (
+        <section className="capture-review-section">
+          <div className="metric-label">AI Proposal</div>
+          <div className="capture-proposal-card">
+            {artifact?.type || routing?.artifact_type || routing?.capture_mode ? (
+              <p><strong>Type:</strong> {artifact?.type || routing?.artifact_type || routing?.capture_mode}</p>
+            ) : null}
+            {reingest?.target_surface || event.approval?.target_surface ? (
+              <p>
+                <strong>Target:</strong> {reingest?.target_surface || event.approval?.target_surface}
+                {reingest?.target_id || event.approval?.target_id ? ` / ${reingest?.target_id || event.approval?.target_id}` : ""}
+              </p>
+            ) : null}
+            {artifact?.confidence ? <p className="muted">Confidence: {artifact.confidence}</p> : null}
+            {deltaEntries.length ? (
+              <dl className="capture-delta-list">
+                {deltaEntries.map(([key, value]) => (
+                  <div key={key}>
+                    <dt>{key}</dt>
+                    <dd>{formatValue(value)}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <p className="muted">No proposed delta fields to show.</p>
+            )}
+          </div>
+        </section>
+      ) : null}
+
+      {outcome ? (
+        <section className="capture-review-section">
+          <div className="metric-label">Human Decision</div>
+          <div className="capture-outcome-card">
+            <strong>{outcome.label}</strong>
+            {outcome.reason ? <p>{outcome.reason}</p> : null}
+          </div>
+        </section>
+      ) : null}
+
+      {isPendingReview ? (
+        <section className="capture-review-section">
+          <div className="metric-label">Human Decision</div>
+          <p className="muted">Append a review event only. Nothing is applied to Office state from this page.</p>
+          <CaptureReviewActions
+            sourceEventId={event.event_id}
+            proposedDelta={reingest?.proposed_delta}
+            targetSurface={reingest?.target_surface}
+            targetId={reingest?.target_id}
+            looksLikeTest={testLikeTranscript}
+          />
+        </section>
+      ) : null}
+
+      {!isPendingReview && ["pending_transcription", "queued"].includes(event.status) && !isQueuedReprocess ? (
+        <section className="capture-review-section">
+          <div className="metric-label">Processing request</div>
           <p className="muted">
             Appends a local request event only. Office Window does not transcribe, call OpenAI, or run the Office Auto Lab pipeline.
           </p>
           <RequestProcessingButton sourceEventId={event.event_id} />
-        </div>
+        </section>
       ) : null}
 
-      {event.human_note ? (
-        <div className="capture-detail-block">
-          <div className="metric-label">human note</div>
+      {event.human_note && !outcome ? (
+        <section className="capture-review-section">
+          <div className="metric-label">Human note</div>
           <p>{event.human_note}</p>
-        </div>
+        </section>
       ) : null}
 
-      {transcript?.text ? (
-        <div className="capture-detail-block">
-          <div className="metric-label">transcript{transcript.model ? ` · ${transcript.model}` : ""}</div>
-          <p>{transcript.text}</p>
-        </div>
-      ) : null}
-
-      {routing ? (
-        <div className="capture-detail-block">
-          <div className="metric-label">routing</div>
-          {routing.routing_sentence ? <p>{routing.routing_sentence}</p> : null}
-          <div className="capture-pills">
-            {routing.capture_mode ? <span>{routing.capture_mode}</span> : null}
-            {routing.lane ? <span>{routing.lane}</span> : null}
-            {routing.artifact_type ? <span>{routing.artifact_type}</span> : null}
+      <details className="capture-technical-details">
+        <summary>Technical details</summary>
+        <div className="capture-trace-grid">
+          <div>
+            <span className="metric-label">event_id</span>
+            <div className="artifact-path">{event.event_id}</div>
           </div>
-          {routing.capture_mode || routing.lane || routing.artifact_type ? (
-            <p className="muted">
-              This is {routing.capture_mode || "[capture mode]"} for {routing.lane || "[lane]"}; it should become {routing.artifact_type || "[artifact]"}.
-            </p>
+          {event.route ? (
+            <div>
+              <span className="metric-label">route</span>
+              <div className="artifact-path">{event.route}</div>
+            </div>
+          ) : null}
+          {event.target.queue_file ? (
+            <div>
+              <span className="metric-label">queue file</span>
+              <div className="artifact-path">{event.target.queue_file}</div>
+            </div>
           ) : null}
         </div>
-      ) : null}
-
-      {artifact ? (
-        <div className="capture-detail-block">
-          <div className="metric-label">artifact candidate{artifact.type ? ` · ${artifact.type}` : ""}</div>
-          {artifact.text ? <p>{artifact.text}</p> : null}
-          {artifact.confidence ? <p className="muted">Confidence: {artifact.confidence}</p> : null}
-        </div>
-      ) : null}
-
-      {reingest ? (
-        <div className="capture-detail-block">
-          <div className="metric-label">reingest candidate</div>
-          {reingest.target_surface ? <p>Target surface: {reingest.target_surface}</p> : null}
-          {reingest.target_id ? <p>Target ID: {reingest.target_id}</p> : null}
-          {reingest.proposed_delta ? <pre className="capture-pre">{formatJson(reingest.proposed_delta)}</pre> : null}
-          {typeof reingest.requires_human_approval === "boolean" ? (
-            <p className="muted">
-              Requires human approval: {reingest.requires_human_approval ? "yes" : "no"}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
+        {routing ? <pre className="capture-pre">{formatJson({ routing })}</pre> : null}
+        {reingest ? <pre className="capture-pre">{formatJson({ reingest_candidate: reingest })}</pre> : null}
+        {artifact ? <pre className="capture-pre">{formatJson({ artifact_candidate: artifact })}</pre> : null}
+        {event.approval ? <pre className="capture-pre">{formatJson({ approval: event.approval })}</pre> : null}
+        {event.discard ? <pre className="capture-pre">{formatJson({ discard: event.discard })}</pre> : null}
+        {event.archive ? <pre className="capture-pre">{formatJson({ archive: event.archive })}</pre> : null}
+        {event.request ? <pre className="capture-pre">{formatJson({ request: event.request })}</pre> : null}
+        {event.events ? <pre className="capture-pre">{formatJson({ events: event.events })}</pre> : null}
+      </details>
     </article>
   );
 }

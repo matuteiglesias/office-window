@@ -9,6 +9,7 @@ export const CAPTURE_EVENT_TYPES = [
   "capture.applied",
   "capture.archived",
   "capture.discarded",
+  "capture.reprocess_requested",
 ] as const;
 
 export type CaptureEventType = (typeof CAPTURE_EVENT_TYPES)[number];

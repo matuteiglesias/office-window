@@ -677,3 +677,245 @@ code {
     grid-template-columns: 1fr;
   }
 }
+
+.capture-card-compact {
+  padding: 12px 14px;
+}
+
+.capture-transcript-quote {
+  border-left: 3px solid rgba(121, 192, 255, 0.65);
+  color: #d0d7de;
+  line-height: 1.55;
+  margin: 10px 0 0;
+  padding-left: 12px;
+}
+
+.capture-proposal-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(121, 192, 255, 0.06);
+  margin-top: 10px;
+  padding: 12px;
+}
+
+.capture-proposal-card p {
+  margin: 0 0 8px;
+}
+
+.capture-delta-list {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+}
+
+.capture-delta-list div {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 4px;
+  padding-top: 8px;
+}
+
+.capture-delta-list dt {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.capture-delta-list dd {
+  color: #f0f6fc;
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.capture-review-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.capture-review-buttons {
+  margin: 0;
+}
+
+.capture-delta-editor {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.025);
+  padding: 12px;
+}
+
+.capture-delta-editor label {
+  color: var(--muted);
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.capture-delta-editor textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #070a10;
+  color: var(--text);
+  padding: 10px;
+  font: inherit;
+}
+
+.capture-technical-details {
+  border-top: 1px solid var(--line);
+  margin-top: 12px;
+  padding-top: 12px;
+}
+
+.capture-technical-details summary {
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.capture-review-panel {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.025);
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+}
+
+.capture-review-panel label {
+  color: var(--muted);
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.capture-review-panel input,
+.capture-review-panel select,
+.capture-review-panel textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #070a10;
+  color: var(--text);
+  padding: 10px;
+  font: inherit;
+}
+
+.capture-review-panel textarea {
+  resize: vertical;
+}
+
+.capture-reason-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.capture-reason-grid button.selected {
+  border-color: rgba(63, 185, 80, 0.6);
+  color: var(--ok);
+}
+
+.capture-inline-link {
+  justify-self: start;
+}
+
+.capture-review-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.capture-review-header {
+  align-items: flex-start;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.capture-review-title-block {
+  min-width: 0;
+}
+
+.capture-review-title-block h3 {
+  margin-top: 2px;
+}
+
+.capture-review-section {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 10px;
+  padding-top: 14px;
+}
+
+.capture-section-head {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.capture-outcome-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(63, 185, 80, 0.07);
+  color: #d0d7de;
+  padding: 12px;
+}
+
+.capture-outcome-card p {
+  margin: 8px 0 0;
+}
+
+.capture-terminal-card {
+  gap: 10px;
+  padding: 14px 16px;
+}
+
+.capture-terminal-summary {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 10px;
+  padding-top: 10px;
+}
+
+.capture-terminal-summary p {
+  color: #d0d7de;
+  line-height: 1.45;
+  margin: 4px 0 0;
+}
+
+.capture-delta-list.compact {
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.capture-delta-list.compact div {
+  padding-top: 6px;
+}
+
+.capture-review-saved {
+  display: grid;
+  gap: 8px;
+}
+
+.capture-review-saved p {
+  margin: 0;
+}
+
+.capture-review-saved code {
+  background: rgba(0,0,0,0.28);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: #d0d7de;
+  display: block;
+  overflow-x: auto;
+  padding: 8px;
+  white-space: nowrap;
+}

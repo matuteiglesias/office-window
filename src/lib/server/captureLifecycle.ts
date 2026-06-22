@@ -37,6 +37,7 @@ export type CaptureLifecycleItem = {
   } | null;
   artifact_candidate?: {
     type?: string;
+    title?: string;
     text?: string;
     confidence?: string;
     artifact_path?: string;
@@ -48,6 +49,16 @@ export type CaptureLifecycleItem = {
     requires_human_approval?: boolean;
   } | null;
   events?: string[];
+  approval?: {
+    target_surface?: string;
+    target_id?: string;
+    approved_delta?: unknown;
+    requires_apply?: boolean;
+  } | null;
+  review?: { reviewer?: string; note?: string } | null;
+  discard?: { reason?: string; note?: string } | null;
+  archive?: { reason?: string; note?: string } | null;
+  request?: { stage?: string; instruction?: string } | null;
 };
 
 export type CaptureLifecycle = {
@@ -147,6 +158,11 @@ function parseCompiledCapture(value: unknown): CaptureLifecycleItem | null {
     artifact_candidate: copyOptionalObject(record.artifact_candidate),
     reingest_candidate: copyOptionalObject(record.reingest_candidate),
     events: parseEvents(record.events),
+    approval: copyOptionalObject(record.approval),
+    review: copyOptionalObject(record.review),
+    discard: copyOptionalObject(record.discard),
+    archive: copyOptionalObject(record.archive),
+    request: copyOptionalObject(record.request),
   };
 
   return item;
